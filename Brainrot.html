@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Brainrot Blueprint</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+    
+    <style>
+        /* (*** ALL PREVIOUS CSS STYLES GO HERE ***) */
+        /* Note: For brevity, I've omitted the CSS here. Paste all the existing <style> content from the previous response here. */
+        
+        /* --- GENERAL STYLES --- */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: space-around; 
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #66cc66;
+            color: #1a1a1a;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        /* --- UI ELEMENTS --- */
+        #money-display {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1.2em;
+            box-shadow: 0 4px 0 #1a2430;
+            z-index: 10;
+        }
+        
+        #message {
+            position: fixed;
+            top: 10px;
+            font-size: 1.1em;
+            min-height: 25px;
+            color: #d35400; 
+            font-weight: bold;
+        }
+        
+        /* SHOP PANEL */
+        #shop-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7);
+            z-index: 20;
+            width: 300px;
+            display: none; 
+            border: 4px solid #f39c12;
+            text-align: center;
+        }
+
+        .shop-item {
+            background-color: #34495e;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shop-item button {
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            box-shadow: 0 3px 0 #16a085;
+            transform: none;
+        }
+        
+        #close-shop {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #e74c3c;
+        }
+        
+        /* --- BASE CONTAINERS (3D) --- */
+        .base-container {
+            background-color: #f7f7f7; 
+            padding: 25px;
+            border-radius: 5px; 
+            box-shadow: 5px 5px 0px #333; 
+            text-align: center;
+            width: 300px;
+            height: 350px;
+            margin: 0 20px;
+            transform-style: preserve-3d;
+            transition: transform 0.4s ease;
+        }
+        
+        #enemy-base { border: 4px solid #e74c3c; transform: rotateX(8deg) rotateY(10deg) translateZ(-40px); }
+        #my-base { border: 4px solid #3498db; transform: rotateX(8deg) rotateY(-10deg) translateZ(-40px); }
+        .base-container:hover { transform: rotateX(4deg) rotateY(0deg) translateZ(0); }
+        h2 { color: #2c3e50; margin-top: 0; }
+
+        /* --- BRAINROT ITEM BASE STYLES --- */
+        .brainrot-item {
+            color: white;
+            padding: 20px;
+            margin: 15px auto;
+            width: 85%;
+            border-radius: 4px;
+            font-size: 1.4em;
+            font-weight: bold;
+            transition: all 0.4s ease;
+            cursor: default; 
+            transform: translateZ(15px);
+        }
+
+        /* TIER COLORS */
+        .common-tier { background-color: #7f8c8d; box-shadow: 0 4px 0 #606c6e; }
+        .rare-tier { background-color: #3498db; box-shadow: 0 4px 0 #2980b9; }
+        .mythic-tier { background-color: #9b59b6; box-shadow: 0 4px 0 #8e44ad; }
+        .stolen { animation: pulse 0.8s infinite alternate; }
+        .defended { background-color: #f1c40f; box-shadow: 0 4px 0 #f39c12; animation: shake 0.4s; }
+
+        .status { display: block; font-size: 0.7em; margin-top: 5px; }
+
+        .empty-slot {
+            height: 85px; 
+            margin: 15px auto;
+            width: 85%;
+            border: 2px dashed #95a5a6;
+            border-radius: 4px;
+            color: #95a5a6;
+            line-height: 80px;
+            font-size: 0.9em;
+        }
+
+        /* --- BUTTONS & ANIMATIONS --- */
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #1abc9c; 
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 3px 0 #16a085;
+            transform: translateZ(8px);
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover:not(:disabled) { background-color: #16a085; box-shadow: 0 2px 0 #16a085; }
+        button:disabled { background-color: #bdc3c7; box-shadow: 0 3px 0 #95a5a6; cursor: not-allowed; }
+        @keyframes pulse { from { opacity: 1; } to { opacity: 0.8; } }
+        @keyframes shake {
+          0%, 100% { transform: translateZ(15px) translateX(0); }
+          25% { transform: translateZ(15px) translateX(-4px); }
+          75% { transform: translateZ(15px) translateX(4px); }
+        }
+    </style>
+</head>
+<body>
+    
+    <div style="position: fixed; top: 10px; right: 20px; background: #3498db; color: white; padding: 5px 10px; border-radius: 4px;">
+        Player ID: <span id="player-id">Awaiting Connection...</span>
+    </div>
+
+    <div id="money-display">
+        $0.00
+    </div>
+    
+    <p id="message">Steal the Brainrot!</p>
+
+    <button id="shopButton" onclick="toggleShop()" style="position: fixed; top: 20px; left: 20px;">
+        🛒 Shop
+    </button>
+    
+    <div class="base-container" id="enemy-base">
+        <h2>Enemy Base (Open)</h2>
+        <div id="enemy-slot">
+            </div>
+        <button id="stealButton" onclick="attemptSteal()">
+            Attempt to Steal!
+        </button>
+    </div>
+    
+    <div class="base-container" id="my-base">
+        <h2>My Base</h2>
+        <div id="my-slot" class="empty-slot">
+            Brainrot Slot
+        </div>
+        <p style="color: #3498db; font-weight: bold;">(Protected)</p>
+    </div>
+
+    <button id="resetButton" onclick="resetGame()" style="position: fixed; bottom: 20px; right: 20px;">
+        Reset Game
+    </button>
+    
+    <div id="shop-panel">
+        <span id="close-shop" onclick="toggleShop()">X</span>
+        <h3>🛒 Shop Upgrades</h3>
+        <div id="shop-items-container">
+            </div>
+        <p style="font-size:0.8em; color: #f1c40f;">Current Defense Chance: <span id="defense-stat">40%</span></p>
+        <p style="font-size:0.8em; color: #f1c40f;">Steal Cooldown: <span id="cooldown-stat">4s</span></p>
+    </div>
+
+
+    <script>
+        // 3. FIREBASE CONFIGURATION (REPLACE WITH YOUR KEYS)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+
+        // Initialize Firebase app
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+        
+        // Multiplayer setup: Unique ID for this player session
+        const PLAYER_ID = Math.random().toString(36).substr(2, 9);
+        document.getElementById('player-id').textContent = PLAYER_ID;
+        
+
+        // --- GAME DATA (NOW MOVED TO DATABASE) ---
+        // These will be used to initialize the local UI, but all changes will be written to Firebase.
+        const BrainrotTiers = [
+            { name: "Common Brainrot", rate: 0.25, colorClass: "common-tier" },
+            { name: "Rare Brainrot", rate: 0.50, colorClass: "rare-tier" },
+            { name: "Mythic Brainrot", rate: 1.00, colorClass: "mythic-tier" },
+        ];
+        
+        const ShopItems = [
+            { id: 0, name: "Better Gloves (Speed)", cost: 5.00, effect: "cooldown", value: 1, maxLevel: 2, level: 0 },
+            { id: 1, name: "Invisibility Cloak", cost: 10.00, effect: "defense", value: 0.10, maxLevel: 3, level: 0 }
+        ];
+
+        // --- GAME STATE (LOCAL VARIABLES now receive data from Firebase) ---
+        let currentBrainrot = null; 
+        let localPlayerData = {}; // Stores the current player's money, cooldown, etc.
+
+
+        // --- FIREBASE LISTENERS (The core of multiplayer) ---
+
+        // 4. LISTEN FOR GAME STATE CHANGES (What Brainrot is currently in the Enemy Base?)
+        database.ref('game/enemyBase').on('value', (snapshot) => {
+            const brainrotData = snapshot.val();
+            if (brainrotData) {
+                renderEnemyBrainrot(brainrotData);
+            } else {
+                renderEmptyEnemyBase();
+            }
+        });
+        
+        // 5. LISTEN FOR PLAYER MONEY & INVENTORY CHANGES
+        database.ref('players/' + PLAYER_ID).on('value', (snapshot) => {
+            localPlayerData = snapshot.val() || { money: 0, hasBrainrot: false, cooldown: 4, defense: 0.40, inventory: null };
+            updateMoneyDisplay(localPlayerData.money);
+            renderMyBase(localPlayerData.inventory);
+            // Re-render shop stats based on current player's data
+            updateShopStats(localPlayerData.defense, localPlayerData.cooldown); 
+        });
+
+
+        // --- UI & STATS UPDATING (Now read from the synced 'localPlayerData') ---
+        function updateMoneyDisplay(currentMoney) {
+            document.getElementById('money-display').textContent = 
+                `$${currentMoney.toFixed(2)}`;
+        }
+        
+        function updateShopStats(defense, cooldown) {
+            document.getElementById('defense-stat').textContent = `${(defense * 100).toFixed(0)}%`;
+            document.getElementById('cooldown-stat').textContent = `${cooldown}s`;
+        }
+
+        // --- RENDER LOGIC (To update UI when Firebase pushes data) ---
+        function renderEnemyBrainrot(data) {
+            enemySlot.innerHTML = '';
+            if (data.ownerId === 'none') { // Not stolen
+                const brainrotElement = document.createElement('div');
+                brainrotElement.id = 'brainrot-active';
+                brainrotElement.classList.add('brainrot-item', data.colorClass);
+                
+                brainrotElement.innerHTML = `
+                    🧠 ${data.name} <br>
+                    <span class="status">Value: $${data.rate.toFixed(2)}/s</span>
+                `;
+                enemySlot.appendChild(brainrotElement);
+                stealButton.style.visibility = 'visible';
+                stealButton.disabled = false;
+
+            } else { // Already stolen by someone
+                enemySlot.innerHTML = '<p style="color:#e74c3c;">BRAINROT STOLEN!</p>';
+                stealButton.style.visibility = 'hidden';
+            }
+        }
+        
+        function renderMyBase(inventoryData) {
+            mySlot.innerHTML = 'Brainrot Slot';
+            mySlot.classList.add('empty-slot');
+            
+            if (inventoryData) {
+                // If the player has the item, display it
+                mySlot.classList.remove('empty-slot');
+                mySlot.innerHTML = '';
+                
+                const brainrotElement = document.createElement('div');
+                brainrotElement.classList.add('brainrot-item', inventoryData.colorClass, 'stolen');
+                brainrotElement.innerHTML = `
+                    🧠 ${inventoryData.name} <br>
+                    <span class="status">STOLEN! Earning $${inventoryData.rate.toFixed(2)}/s for YOU!</span>
+                `;
+                mySlot.appendChild(brainrotElement);
+            }
+        }
+        
+        // --- MONEY GENERATION (Timer updates the player's data in the database) ---
+        const moneyInterval = setInterval(() => {
+            if (localPlayerData && localPlayerData.inventory) {
+                const newMoney = localPlayerData.money + localPlayerData.inventory.rate;
+                database.ref('players/' + PLAYER_ID + '/money').set(newMoney);
+            }
+        }, 1000); 
+
+        // --- GAME ACTIONS (The main functions now use Firebase Transactions) ---
+        
+        function attemptSteal() {
+            if (localPlayerData.inventory) {
+                messageElement.textContent = "You already own a Brainrot!";
+                return;
+            }
+            
+            // Transaction: Ensure only one player steals at a time
+            database.ref('game/enemyBase').transaction((currentEnemyBase) => {
+                if (currentEnemyBase && currentEnemyBase.ownerId === 'none') {
+                    // Check Defense Chance based on player's stats
+                    if (Math.random() < localPlayerData.defense) {
+                        messageElement.textContent = "SLAPPED! Defense successful!";
+                        startCooldown(2);
+                        return; // Abort transaction (No steal)
+                    }
+                    
+                    // Steal successful: Update the base owner and transfer item
+                    const itemToSteal = currentEnemyBase;
+                    itemToSteal.ownerId = PLAYER_ID; 
+
+                    // Update player inventory and state
+                    database.ref('players/' + PLAYER_ID + '/inventory').set(itemToSteal);
+                    database.ref('players/' + PLAYER_ID + '/hasBrainrot').set(true);
+
+                    messageElement.textContent = `SUCCESS! ${itemToSteal.name} Secured!`;
+                    startCooldown(localPlayerData.cooldown);
+                    return itemToSteal; // Commit transaction
+                }
+            });
+        }
+        
+        // (*** SHOP LOGIC WOULD NEED SIMILAR FIREBASE UPDATES ***)
+        
+        function resetGame() {
+             // 6. MULTIPLAYER RESET (Only the first player to run this generates the new brainrot)
+            database.ref('game/enemyBase').transaction((currentData) => {
+                if (!currentData || currentData.ownerId !== 'none') {
+                    // Generate new random Brainrot data
+                    const randomIndex = Math.floor(Math.random() * BrainrotTiers.length);
+                    const newBrainrot = BrainrotTiers[randomIndex];
+                    newBrainrot.ownerId = 'none'; // Set as available
+                    return newBrainrot;
+                }
+                return; // Do nothing if a Brainrot is already available
+            }).then(() => {
+                 // Clear the current player's inventory
+                database.ref('players/' + PLAYER_ID + '/inventory').set(null);
+                database.ref('players/' + PLAYER_ID + '/hasBrainrot').set(false);
+                messageElement.textContent = "Game state reset and Brainrot generated!";
+            });
+        }
+        
+        // --- COOLDOWN LOGIC (Stays mostly local, but uses synchronized cooldown time) ---
+        function startCooldown(time) {
+            // (*** Cooldown logic stays the same but uses 'localPlayerData.cooldown' ***)
+            // ... (Omitted for brevity, but it's the same structure as before) ...
+        }
+        
+        function toggleShop() {
+            // ... (Omitted for brevity, same as before) ...
+        }
+        
+        function renderShopItems() {
+            // ... (Omitted for brevity, renders based on localPlayerData stats) ...
+        }
+
+        function buyUpgrade(id) {
+            // ... (Omitted for brevity, must use Firebase transaction to update 'players/' + PLAYER_ID data) ...
+        }
+        
+        // --- INITIALIZATION ---
+        // Initialize player's data structure if it doesn't exist
+        database.ref('players/' + PLAYER_ID).once('value', (snapshot) => {
+            if (!snapshot.exists()) {
+                database.ref('players/' + PLAYER_ID).set({
+                    money: 0,
+                    hasBrainrot: false,
+                    cooldown: 4,
+                    defense: 0.40,
+                    inventory: null
+                });
+            }
+        });
+        
+    </script>
+</body>
+</html>
